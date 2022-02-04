@@ -19,7 +19,7 @@ server.use(cors());
 server.post("/login", async (req, res) => {
 	const user = req.body;
 
-	{await db.collection("users").findOne({email: user.email, password: user.password}).then((exist) => {
+	await db.collection("users").findOne({email: user.email, password: user.password}).then((exist) => {
 		if(!exist){
 			res.sendStatus(401)
 			return;
@@ -27,7 +27,7 @@ server.post("/login", async (req, res) => {
 	})
 	.catch(() => {
 		res.sendStatus(500)
-	})};
+	});
 
 	res.sendStatus(200);
 })
@@ -35,7 +35,7 @@ server.post("/login", async (req, res) => {
 server.post("/sign-up", async (req, res) => {
 	const user = req.body;
 
-	{await db.collection("users").findOne({name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword}).then((exist) => {
+	await db.collection("users").findOne({name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword}).then((exist) => {
 		if(exist){
 			res.sendStatus(409)
 			return;
@@ -47,8 +47,23 @@ server.post("/sign-up", async (req, res) => {
 	await db.collection("users").insertOne(
 		{name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword});
 
-	res.sendStatus(201);}
-	
+	res.sendStatus(201);	
+})
+
+server.post("/new-entry", async (req, res) => {
+	const newEntry = req.body;
+
+	await db.collection("historic").insertOne({value: newEntry.value, description: newEntry.description});
+
+	res.sendStatus(201);
+})
+
+server.post("/new-exit", async (req, res) => {
+	const newExit = req.body;
+
+	await db.collection("historic").insertOne({value: newExit.value, description: newExit.description});
+
+	res.sendStatus(201);
 })
 
 server.listen(5000);
