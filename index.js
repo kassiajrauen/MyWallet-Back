@@ -2,6 +2,7 @@ import express, {json} from 'express';
 import { MongoClient } from "mongodb";
 import cors from 'cors';
 import dotenv from "dotenv";
+import dayjs, { Dayjs } from 'dayjs';
 
 dotenv.config();
 
@@ -53,7 +54,7 @@ server.post("/sign-up", async (req, res) => {
 server.post("/new-entry", async (req, res) => {
 	const newEntry = req.body;
 
-	await db.collection("historic").insertOne({value: newEntry.value, description: newEntry.description});
+	await db.collection("historic").insertOne({value: newEntry.value, description: newEntry.description, date: Date.now()});
 
 	res.sendStatus(201);
 })
@@ -61,9 +62,14 @@ server.post("/new-entry", async (req, res) => {
 server.post("/new-exit", async (req, res) => {
 	const newExit = req.body;
 
-	await db.collection("historic").insertOne({value: newExit.value, description: newExit.description});
+	await db.collection("historic").insertOne({value: newExit.value, description: newExit.description, date: Date.now()});
 
 	res.sendStatus(201);
+})
+
+server.get("/home", async (req, res) => {
+
+	await db.collection("historic").find({value: value, description: description, date: date});
 })
 
 server.listen(5000);
