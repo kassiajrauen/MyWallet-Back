@@ -19,29 +19,36 @@ server.use(json());
 server.use(cors());
 
 server.post("/login", async (req, res) => {
-	const user = req.body;
+	const {email, password} = req.body;
 
 	const loginSchema = joi.object({
 		email: joi.string().email().required(),
 		password: joi.string().required()
 	});
 
-	const validate = loginSchema.validate(user);
+	const validate = loginSchema.validate({email, password});
 
 	if(validate.error){
 		return res.sendStatus(422);
 	}
 
-	try{await db.collection("users").findOne(user);
-		if(user && bcrypt.compareSync(user, user.password)){
+	try{
+		const user = await db.collection("users").findOne({email});
+		if(!user){
+			res.sendStatus(401);
+			return;
+		}
+
+		const isAuthorized = bcrypt.compareSync(password, user.password);
+		if(isAuthorized){
 			const token = uuid();
 
-			await db.collection("sessions").insertOne({token: token, userId: user._id, email: user.email});
+			await db.collection("sessions").insertOne({token, userId: user._id,})
 
-			res.sendStatus({token: token, name: user.name});
+			return res.send(token);
 		}else{
 			res.sendStatus(401);
-		}
+		};
 	}
 	catch(error) {
 		res.sendStatus(500);
@@ -50,8 +57,6 @@ server.post("/login", async (req, res) => {
 
 server.post("/sign-up", async (req, res) => {
 	const user = req.body;
-	
-	user.password = bcrypt.hashSync(req.body.password, 10);
 	
 	const userSchema = join.object({
 		name: join.string().required(),
@@ -66,24 +71,38 @@ server.post("/sign-up", async (req, res) => {
 		return res.sendStatus(422);
 	}
 
+	try{
+		const passwordHashed = bcrypt.hashSync(user.password, 10);
 
-	await db.collection("users").findOne({name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword}).then((exist) => {
+	const exist = await db.collection("users").findOne(user);
 		if(exist){
 			res.sendStatus(409)
 			return;
 		}
-	}).catch((err) => {
-		res.sendStatus(500);
-	});
-
+	
 	await db.collection("users").insertOne(
-		{name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword});
+		{...user, password: passwordHashed});
 
-	res.sendStatus(201);	
+	res.sendStatus(201);
+	} catch(error) {
+		res.sendStatus(500);
+	}
 })
 
 server.post("/new-entry", async (req, res) => {
 	const newEntry = req.body;
+
+	const authorization = req.headers.authorization;
+	const token = authorization?.replace('Bearer ', '');
+
+	if(!token){
+		return res.sendStatus(401);
+	}
+
+	const session = await db.collection("sessions").findOne({token});
+	if(!session){
+		return res.sendStatus(401);
+	}
 
 	await db.collection("historic").insertOne({type: "new-entry", value: newEntry.value, description: newEntry.description, date: Date.now()});
 
@@ -93,12 +112,36 @@ server.post("/new-entry", async (req, res) => {
 server.post("/new-exit", async (req, res) => {
 	const newExit = req.body;
 
+	const authorization = req.headers.authorization;
+	const token = authorization?.replace('Bearer ', '');
+
+	if(!token){
+		return res.sendStatus(401);
+	}
+
+	const session = await db.collection("sessions").findOne({token});
+	if(!session){
+		return res.sendStatus(401);
+	}
+
 	await db.collection("historic").insertOne({type: "new-exit", value: newExit.value, description: newExit.description, date: Date.now()});
 
 	res.sendStatus(201);
 })
 
 server.get("/home", async (req, res) => {
+
+	const authorization = req.headers.authorization;
+	const token = authorization?.replace('Bearer ', '');
+
+	if(!token){
+		return res.sendStatus(401);
+	}
+
+	const session = await db.collection("sessions").findOne({token});
+	if(!session){
+		return res.sendStatus(401);
+	}
 
 	await db.collection("historic").find({}).toArray().then(historic => {
 		res.send(historic)
