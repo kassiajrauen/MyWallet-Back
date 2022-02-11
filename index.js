@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from "dotenv";
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from "uuid";
+import joi from 'joi';
 
 dotenv.config();
 
@@ -11,7 +12,7 @@ const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 
 mongoClient.connect().then(() => {
-	db = mongoClient.db("projeto_13_MyWallet");
+	db = mongoClient.db("project_13_MyWallet");
 });
 
 const server = express();
@@ -58,18 +59,18 @@ server.post("/login", async (req, res) => {
 server.post("/sign-up", async (req, res) => {
 	const user = req.body;
 	
-	const userSchema = join.object({
-		name: join.string().required(),
-		email: join.string().email().required(),
-		password: join.string().required(),
-		confirmPassword: join.string().required()
+	const userSchema = joi.object({
+		name: joi.string().required(),
+		email: joi.string().email().required(),
+		password: joi.string().required(),
+		// confirmPassword: joi.string().required()
 	});
 
 	const validate = userSchema.validate(user);
 
 	if(validate.error){
 		return res.sendStatus(422);
-	}
+	}else res.sendStatus(201);
 
 	try{
 		const passwordHashed = bcrypt.hashSync(user.password, 10);
@@ -151,4 +152,6 @@ server.get("/home", async (req, res) => {
 	res.sendStatus(200);
 })
 
-server.listen(5000);
+server.listen(process.env.PORT, () => {
+    console.log("Server running on port " + process.env.PORT);
+});
